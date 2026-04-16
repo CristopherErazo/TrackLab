@@ -77,18 +77,18 @@ When you run an experiment, TrackLab organizes the data into the following struc
 
 ```
 data/
-    <experiment_name>/
-        run_<id>/
-            config.json          # Configuration file for the run
-            metrics.csv          # Metrics tracked during the run
-            artifacts/           # Folder for saved artifacts
-                index.csv        # Index of saved artifacts
-                test_step_0.npy  # Example artifact file
-                test_step_2.npy
-                ...
-            logs/                # Folder for logs
-                info.log         # Log file for INFO messages
-                error.log        # Log file for ERROR messages
+└── <experiment_name>/
+    └── run_<id>/
+        ├── config.json          # Configuration file for the run
+        ├── metrics.csv          # Metrics tracked during the run
+        ├── artifacts/           # Folder for saved artifacts
+        │   ├── index.csv        # Index of saved artifacts
+        │   ├── test_step_0.npy  # Example artifact file
+        │   ├── test_step_2.npy
+        │   └── ...
+        └── logs/                # Folder for logs
+            ├── info.log         # Log file for INFO messages
+            └── error.log        # Log file for ERROR messages
 ```
 
 ### Key Details
