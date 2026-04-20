@@ -9,8 +9,13 @@ class ExperimentReader:
         self.exp_dir = Path(base_dir)/experiment_name
     
     def list_runs(self):
-        return [d for d in os.listdir(self.exp_dir) if d.startswith("run_") ]
-
+        full_list = os.listdir(self.exp_dir)
+        runs = []
+        for dir in full_list:
+            if dir.startswith("run_") and Path.exists(self.exp_dir/dir/"metrics.csv"):
+                runs.append(dir)
+        return runs
+    
     def load_metrics(self, run_id):
         return pd.read_csv(self.exp_dir/run_id/"metrics.csv")
     
@@ -20,3 +25,5 @@ class ExperimentReader:
     
     def list_artifacts(self, run_id):
         return pd.read_csv(self.exp_dir/run_id/"artifacts"/"index.csv")
+    
+    
