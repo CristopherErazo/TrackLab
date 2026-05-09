@@ -36,9 +36,14 @@ class Run:
         if hasattr(self, "artifacts"):
             self.artifacts.flush()
 
-    def track_artifact(self, step, tensor, name=''):
+    def track_artifact(self, data, step = None, name='', type='tensor'):
         if hasattr(self, "artifacts"):
-            self.artifacts.save_tensor(step, tensor, name)
+            if type == 'tensor':
+                self.artifacts.save_tensor(data, step, name)
+            elif type == 'pickle':
+                self.artifacts.save_pickle(data, step, name)
+            else:
+                raise ValueError(f"Unsupported artifact type: {type}")
     
     def get_logger(self, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
         return create_run_logger(self.run_dir, self.run_id, log_to_terminal, log_to_file, level, log_format)

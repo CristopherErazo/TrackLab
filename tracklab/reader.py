@@ -1,6 +1,8 @@
 import os
 import json
+import pickle
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 class ExperimentReader:
@@ -26,4 +28,13 @@ class ExperimentReader:
     def list_artifacts(self, run_id):
         return pd.read_csv(self.exp_dir/run_id/"artifacts"/"index.csv")
     
+    def load_artifact(self, run_id, artifact_name):
+        artifact_path = self.exp_dir/run_id/"artifacts"/artifact_name
+        if artifact_path.suffix == ".npy":
+            return np.load(artifact_path)
+        elif artifact_path.suffix == ".pkl":
+            with open(artifact_path, 'rb') as f:
+                return pickle.load(f)
+        else:
+            raise ValueError(f"Unsupported artifact format: {artifact_path.suffix}")
     
