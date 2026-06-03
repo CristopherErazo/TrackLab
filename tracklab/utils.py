@@ -24,3 +24,14 @@ def next_run_id(exp_dir):
 
         n = max(existing, default=0) + 1
     return f"run_{n:03d}"
+
+def flatten_dict(d : dict, parent="", sep="."):
+    """Flattens a nested dictionary into a single level dictionary with keys representing the path to each value."""
+    out = {}
+    for k, v in d.items():
+        key = f"{parent}{sep}{k}" if parent else k
+        if isinstance(v, dict):
+            out.update(flatten_dict(v, key, sep))
+        else:
+            out[key] = v
+    return out
