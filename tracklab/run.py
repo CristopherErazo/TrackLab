@@ -28,8 +28,8 @@ class Run:
         # save config immediately
         self.config.save(config)
 
-    def track_metric(self, step, **metrics):
-        self.metrics.track(step, metrics)
+    def track_metric(self, step,note=None,**metrics):
+        self.metrics.track(step, metrics, note)
 
     def finalize(self):
         self.metrics.flush()
