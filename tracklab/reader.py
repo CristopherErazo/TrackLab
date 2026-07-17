@@ -18,7 +18,6 @@ class ExperimentReader:
         for dir in full_list:
             if dir.startswith("run_") and Path.exists(self.exp_dir/dir/"metrics.csv"):
                 runs.append(dir)
-
         return runs
     
     def load_metrics(self, run_id):
@@ -27,6 +26,19 @@ class ExperimentReader:
     def load_config(self, run_id):
         with open(self.exp_dir/run_id/"config.json", 'r') as f:
             return json.load(f)
+    
+    def update_config(self, run_id, new_config):
+        """
+        Update the configuration of a specific run with new values.
+        """
+        config_path = self.exp_dir/run_id/"config.json"
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+        # Update the config with new values
+        config.update(new_config)
+        # Save the updated config back to the file
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
     
     def list_artifacts(self, run_id):
         return pd.read_csv(self.exp_dir/run_id/"artifacts"/"index.csv")
