@@ -20,16 +20,13 @@ class Run:
         self.metrics = MetricsWriter(self.run_dir)
         self.config = ConfigWriter(self.run_dir)
         if artifacts:
-            self.artifacts = ArtifactWriter(self.run_dir)
-        
-        
-        
+            self.artifacts = ArtifactWriter(self.run_dir)        
 
         # save config immediately
         self.config.save(config)
 
-    def track_metric(self, step,note=None,**metrics):
-        self.metrics.track(step, metrics, note)
+    def track_metric(self, step, note=None, tags=None, **metrics):
+        self.metrics.track(step, metrics, note=note, **(tags or {}))
 
     def finalize(self):
         self.metrics.flush()
@@ -44,6 +41,17 @@ class Run:
                 self.artifacts.save_pickle(data, step, name)
             else:
                 raise ValueError(f"Unsupported artifact type: {type}")
+
+   # to finish...
+    def load_artifact(self, name='', step=None, type='tensor'):
+        if not hasattr(self, "artifacts"):
+            raise RuntimeError("Run was created with artifacts=False")
+        if type == 'tensor':
+            return self.artifacts.load_tensor(step, name)
+        elif type == 'pickle':
+            return self.artifacts.load_pickle(step, name)
+        else:   
+            raise ValueError(f"Unsupported artifact type: {type}")
     
     def get_logger(self, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
         return create_run_logger(self.run_dir, self.run_id, log_to_terminal, log_to_file, level, log_format)

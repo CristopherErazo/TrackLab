@@ -28,9 +28,6 @@ class ArtifactWriter:
             pickle.dump(data, f)
         self.index.append({"step": step, "file": fname})
 
-
-
-
     def flush(self):
         if not self.index:
             return
@@ -45,3 +42,5 @@ class ArtifactWriter:
 
         df.to_csv(self.index_path, index=False)
         self.index = []
+
+    # To include artifact readers.

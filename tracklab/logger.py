@@ -10,6 +10,7 @@ class LevelFilter(logging.Filter):
         return record.levelno == self.level
 
 
+
 def create_run_logger(run_dir, run_id, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
     """
     Create a logger for a specific run.

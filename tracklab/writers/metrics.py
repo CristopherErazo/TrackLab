@@ -6,16 +6,13 @@ class MetricsWriter:
         self.path = f"{run_dir}/metrics.csv"
         self.buffer = []
 
-    def track(self, step, metrics: dict, note=None):
+    def track(self, step, metrics: dict, note=None, **tags):
         for k, v in metrics.items():
-            data = {
-                "step": step,
-                "metric": k,
-                "value": v
-            }
+            row = {"step": step, "metric": k, "value": v}
             if note is not None:
-                data["note"] = note
-            self.buffer.append(data)
+                row["note"] = note
+            row.update(tags)          # e.g. branch_id="root_fork@4137"
+            self.buffer.append(row)
 
     def flush(self):
         if not self.buffer:
