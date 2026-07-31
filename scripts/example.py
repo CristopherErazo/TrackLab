@@ -1,8 +1,8 @@
 import numpy as np
 from omegaconf import OmegaConf
 from dataclasses import dataclass 
-
-from tracklab.experiment import Experiment
+import time
+from tracklab.experiment import ExperimentTracker
 
 @dataclass
 class Config:
@@ -37,31 +37,34 @@ if __name__ == "__main__":
     print(f"Experiment name: {experiment_name}")
 
     # Create an experiment and run
-    exp = Experiment(experiment_name)
-    run  = exp.start_run(cfg, artifacts=True)
-    # Initialize logger for the run
-    logger = run.get_logger(log_to_file=True, log_to_terminal=False)
+    exp = ExperimentTracker(experiment_name)
 
+    with exp.start_run(cfg, artifacts=True) as run:
+        # Initialize logger for the run
+        logger = run.get_logger(log_to_file=True, log_to_terminal=True)
 
-    logger.info("Starting training")
+        logger.info("Starting training")
 
-    for step in range(10):
-        # Simulate training and track results
-        loss = np.random.random()
-        acc = np.random.random()
-        results = {"train_loss": loss, "accuracy": acc, "something_else": acc * 2}
-        run.track_metric(step, **results)
+        for step in range(30):
+            # Simulate training and track results
+            loss = np.random.random()
+            acc = np.random.random()
+            results = {"train_loss": loss, "accuracy": acc, "something_else": acc * 2}
+            run.track_metric(step, **results)
+            run.track_metric(step, note='hello', tags={'id':'1001'}, **results)
 
-        # Log results 
-        logger.info(f"Step {step} - Results: {results}")
-        if acc > 0.5:
-            logger.error(f"Accuracy is above 0.5 at step {step}!")
-        
-        # Track an artifact every 2 steps
-        if step % 2 == 0:
-            run.track_artifact(step, np.random.rand(3, 3),'test')
+            # Log results 
+            logger.info(f"Step {step} - Results: {results}")
+            if acc > 0.5:
+                logger.error(f"Accuracy is above 0.5 at step {step}!")
+            
+            # Track an artifact every 2 steps
+            if step % 2 == 0:
+                run.track_artifact(np.random.rand(3, 3),step,name='test')
+                run.track_artifact({'data':np.random.rand(3, 3)},step,name='data',group='dic',type='pickle')
 
-    # Finalize the run to flush tracked metrics
-    run.finalize()
-    logger.info("Experiment completed") 
+            time.sleep(1)  # Simulate time taken for training
 
+        # Finalize the run to flush tracked metrics
+        run.finalize()
+        logger.info("Experiment completed")
