@@ -1,9 +1,17 @@
+import pickle
+import numpy as np
+import torch
+import pandas as pd
 import os
 import json
-import pickle
-import pandas as pd
-import numpy as np
 from pathlib import Path
+
+from .writers.artifacts import _SERIALIZERS
+from .utils import read_jsonl
+
+_EXT_TO_READ_FN = {ext: read_fn for _, (_, read_fn, ext) in _SERIALIZERS.items()}
+# _EXT_TO_TYPE = {ext: type_name for type_name, (_, _, ext) in _SERIALIZERS.items()}
+
 
 from .utils import flatten_dict
 
@@ -12,16 +20,15 @@ class ExperimentReader:
         self.experiment_name = experiment_name
         self.exp_dir = Path(base_dir)/experiment_name
 
+
     def list_runs(self):
-        full_list = os.listdir(self.exp_dir)
-        runs = []
-        for dir in full_list:
-            if dir.startswith("run_") and Path.exists(self.exp_dir/dir/"metrics.csv"):
-                runs.append(dir)
-        return runs
-    
+        return [d for d in os.listdir(self.exp_dir)
+                if d.startswith("run_") and (self.exp_dir/d/"metrics.jsonl").exists()]
+
     def load_metrics(self, run_id):
-        return pd.read_csv(self.exp_dir/run_id/"metrics.csv")
+        rows = read_jsonl(self.exp_dir / run_id / "metrics.jsonl")
+        return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["step", "metric", "value"])
+
     
     def load_config(self, run_id):
         with open(self.exp_dir/run_id/"config.json", 'r') as f:
@@ -39,20 +46,33 @@ class ExperimentReader:
         # Save the updated config back to the file
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=4)
-    
-    def list_artifacts(self, run_id):
-        return pd.read_csv(self.exp_dir/run_id/"artifacts"/"index.csv")
-    
-    def load_artifact(self, run_id, artifact_name):
-        artifact_path = self.exp_dir/run_id/"artifacts"/artifact_name
-        if artifact_path.suffix == ".npy":
-            return np.load(artifact_path)
-        elif artifact_path.suffix == ".pkl":
-            with open(artifact_path, 'rb') as f:
-                return pickle.load(f)
-        else:
-            raise ValueError(f"Unsupported artifact format: {artifact_path.suffix}")
-        
+
+
+    def list_artifact_groups(self, run_id):
+        d = self.exp_dir / run_id / "artifacts"
+        return sorted(p.name for p in d.iterdir() if p.is_dir()) if d.exists() else []
+
+
+    def list_artifacts(self, run_id, group=None):
+        d = self.exp_dir / run_id / "artifacts"
+        index_path = (d if group is None else d / group) / "index.jsonl"
+        rows = read_jsonl(index_path)
+        return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["step", "name", "file", "type"])
+
+    def load_artifact(self, run_id, artifact_name, group=None):
+        """
+        Load an artifact from a specific run and group. 
+        The artifact is loaded based on its file extension.
+        """
+        d = self.exp_dir / run_id / "artifacts"
+        path = (d if group is None else d / group) / artifact_name
+        if not path.exists():
+            raise FileNotFoundError(f"No artifact at {path}")
+        read_fn = _EXT_TO_READ_FN.get(path.suffix)
+        if read_fn is None:
+            raise ValueError(f"Unsupported artifact format: {path.suffix}")
+        return read_fn(path)
+ 
     def sumarize_runs(self, depth_names = 1):
         """
         Summarizes the runs in the experiment by creating a dataframe where each row corresponds 
