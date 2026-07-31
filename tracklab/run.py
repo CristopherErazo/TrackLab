@@ -15,6 +15,7 @@ class Run:
             
         self.run_id = next_run_id(exp_dir)
         self.run_dir = create_run_dir(exp_dir, self.run_id, artifacts)
+        self._finalized = False
 
         # writers
         self.metrics = MetricsWriter(self.run_dir)
@@ -25,33 +26,56 @@ class Run:
         # save config immediately
         self.config.save(config)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.finalize()
+        return False  # never swallow the exception
+
     def track_metric(self, step, note=None, tags=None, **metrics):
+        """
+        Track metrics at a given step. Metrics should be provided as keyword arguments.
+        note is an optional string that can be used to annotate the metrics.
+        tags is an optional dictionary of additional tags to include with the metrics.
+        """
         self.metrics.track(step, metrics, note=note, **(tags or {}))
+        self.metrics.flush()
+
+    def track_artifact(self, data, step=None, group=None, name='', type='tensor'):
+        """
+        Track an artifact by saving it to disk and adding its metadata to the index.
+        Parameters:
+            data: the artifact data to save
+            step: the step at which the artifact is saved
+            group: the group under which to save the artifact (subfolder)
+            name: the name of the artifact
+            type: the type of the artifact, must be one of the keys in _SERIALIZERS: 'tensor', 'torch', or 'pickle'.
+        """
+        if hasattr(self, "artifacts"):
+            self.artifacts.save(data, group=group, name=name, step=step, type=type)
+            self.artifacts.flush()
 
     def finalize(self):
+        if self._finalized:
+            return
         self.metrics.flush()
         if hasattr(self, "artifacts"):
             self.artifacts.flush()
+        self._close_logger_handlers()   
+        self._finalized = True
 
-    def track_artifact(self, data, step = None, name='', type='tensor'):
-        if hasattr(self, "artifacts"):
-            if type == 'tensor':
-                self.artifacts.save_tensor(data, step, name)
-            elif type == 'pickle':
-                self.artifacts.save_pickle(data, step, name)
-            else:
-                raise ValueError(f"Unsupported artifact type: {type}")
+    def _close_logger_handlers(self):
+        logger = logging.getLogger(self.run_id)
+        for h in logger.handlers[:]:
+            h.close()
+            logger.removeHandler(h)
 
-   # to finish...
-    def load_artifact(self, name='', step=None, type='tensor'):
+    def load_artifact(self, group=None, name='', step=None, type='tensor'):
         if not hasattr(self, "artifacts"):
             raise RuntimeError("Run was created with artifacts=False")
-        if type == 'tensor':
-            return self.artifacts.load_tensor(step, name)
-        elif type == 'pickle':
-            return self.artifacts.load_pickle(step, name)
-        else:   
-            raise ValueError(f"Unsupported artifact type: {type}")
+        return self.artifacts.load(group=group, name=name, step=step, type=type)
     
-    def get_logger(self, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
+    def get_logger(self, log_to_terminal=True, log_to_file=True, 
+                   level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
         return create_run_logger(self.run_dir, self.run_id, log_to_terminal, log_to_file, level, log_format)
