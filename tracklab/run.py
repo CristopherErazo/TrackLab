@@ -1,5 +1,8 @@
+import json
+from pathlib import Path
+from omegaconf import OmegaConf
 import logging
-from .utils import create_run_dir, next_run_id
+from .utils import create_run_dir, next_run_id, _atomic_write
 from .writers.config import ConfigWriter
 from .writers.metrics import MetricsWriter
 from .writers.artifacts import ArtifactWriter
@@ -9,22 +12,26 @@ from .logger import create_run_logger
 
 class Run:
     def __init__(self, 
-                 config,    
-                 exp_dir,
-                 artifacts=False):
+                 config : dict | OmegaConf,    
+                 exp_dir : Path,
+                 artifacts : bool =False,
+                 min_flush_interval : float = 0.0):
             
         self.run_id = next_run_id(exp_dir)
         self.run_dir = create_run_dir(exp_dir, self.run_id, artifacts)
         self._finalized = False
+        self.status_path = self.run_dir / "status.json"
 
         # writers
-        self.metrics = MetricsWriter(self.run_dir)
+        self.metrics = MetricsWriter(self.run_dir,min_flush_interval=min_flush_interval)
         self.config = ConfigWriter(self.run_dir)
         if artifacts:
             self.artifacts = ArtifactWriter(self.run_dir)        
 
         # save config immediately
         self.config.save(config)
+
+
 
     def __enter__(self):
         return self
@@ -79,3 +86,8 @@ class Run:
     def get_logger(self, log_to_terminal=True, log_to_file=True, 
                    level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
         return create_run_logger(self.run_dir, self.run_id, log_to_terminal, log_to_file, level, log_format)
+
+
+    def set_status(self, **kwargs):
+        """Write a status update to a json file."""
+        _atomic_write(self.status_path, json.dumps(kwargs))

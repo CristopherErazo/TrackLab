@@ -8,18 +8,21 @@ from pathlib import Path
 
 from .writers.artifacts import _SERIALIZERS
 from .utils import read_jsonl
+from .live import MetricsStream
 
 _EXT_TO_READ_FN = {ext: read_fn for _, (_, read_fn, ext) in _SERIALIZERS.items()}
 # _EXT_TO_TYPE = {ext: type_name for type_name, (_, _, ext) in _SERIALIZERS.items()}
 
 
-from .utils import flatten_dict
+from .utils import flatten_dict, next_run_id
 
 class ExperimentReader:
     def __init__(self, experiment_name, base_dir="./data"):
         self.experiment_name = experiment_name
         self.exp_dir = Path(base_dir)/experiment_name
-
+        
+    def next_run_id(self):
+        return next_run_id(self.exp_dir)
 
     def list_runs(self):
         return [d for d in os.listdir(self.exp_dir)
@@ -28,6 +31,11 @@ class ExperimentReader:
     def load_metrics(self, run_id):
         rows = read_jsonl(self.exp_dir / run_id / "metrics.jsonl")
         return pd.DataFrame(rows) if rows else pd.DataFrame(columns=["step", "metric", "value"])
+
+    def get_metrics_stream(self,run_id = None):
+        if not run_id: 
+            run_id = self.list_runs()[-1]
+        return MetricsStream(self.exp_dir/run_id)
 
     
     def load_config(self, run_id):
@@ -73,7 +81,7 @@ class ExperimentReader:
             raise ValueError(f"Unsupported artifact format: {path.suffix}")
         return read_fn(path)
  
-    def sumarize_runs(self, depth_names = 1):
+    def summarize_runs(self, depth_names = 1):
         """
         Summarizes the runs in the experiment by creating a dataframe where each row corresponds 
         to a run and each column corresponds to a parameter in the configuration. 
@@ -90,6 +98,8 @@ class ExperimentReader:
             rows.append(row)
         # create dataframe with run_id as index and all the parameters as columns 
         df = pd.DataFrame(rows)#.set_index("run_id")
+        if len(df)<=1:
+            return df[['run_id']]
         # keep only parameters that var
         summary = df.loc[ : , df.nunique(dropna=False) > 1]
         # Change names of columns to keep only a depth of the hierarchy of parameters

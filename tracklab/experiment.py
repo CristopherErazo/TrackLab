@@ -11,5 +11,5 @@ class ExperimentTracker:
         self.exp_dir = Path(base_dir)/experiment_name
         os.makedirs(self.exp_dir, exist_ok=True)
 
-    def start_run(self, config, artifacts=False) -> Run:
-        return Run(config, self.exp_dir, artifacts)
+    def start_run(self, config, artifacts=False,min_flush_interval = 0.0) -> Run:
+        return Run(config, self.exp_dir, artifacts,min_flush_interval=min_flush_interval)

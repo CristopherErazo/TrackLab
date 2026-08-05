@@ -32,11 +32,12 @@ def read_jsonl(path: Path) -> list[dict]:
 
 def create_run_dir(exp_dir, run_id, artifacts):
     """Creates a directory for the run inside the experiment directory. The directory is named using the run ID."""
-    path = os.path.join(exp_dir, run_id)
+    # path = os.path.join(exp_dir, run_id)
+    path = Path(exp_dir) / run_id
     os.makedirs(path, exist_ok=True)
     # create artifacts subdir if needed
     if artifacts:
-        os.makedirs(os.path.join(path, "artifacts"), exist_ok=True)
+        os.makedirs(path/"artifacts", exist_ok=True)
     return path
 
 def next_run_id(exp_dir):
@@ -65,3 +66,10 @@ def flatten_dict(d : dict, parent="", sep="."):
         else:
             out[key] = v
     return out
+
+def _atomic_write(path: Path, data: str):
+    """Write to a temp file then rename into place, so a reader (the
+    dashboard, polling once a second) never sees a half-written file."""
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(data)
+    os.replace(tmp, path)
