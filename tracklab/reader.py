@@ -97,16 +97,27 @@ class ExperimentReader:
             row["run_id"] = run_id
             rows.append(row)
         # create dataframe with run_id as index and all the parameters as columns 
-        df = pd.DataFrame(rows)#.set_index("run_id")
-        if len(df)<=1:
-            return df[['run_id']]
-        # keep only parameters that var
-        summary = df.loc[ : , df.nunique(dropna=False) > 1]
+        df = pd.DataFrame(rows)
+
+        if df.empty:
+            return pd.DataFrame(columns=["run_id"])
+
+        if len(df) == 1:
+            return df[["run_id"]]
+
+        # keep only parameters that vary
+        summary = df.loc[:, df.nunique(dropna=False) > 1]
+
         # Change names of columns to keep only a depth of the hierarchy of parameters
-        summary.columns = [ ".".join(col.rsplit(".", depth_names)[-depth_names:]) for col in summary.columns ]
+        summary.columns = [
+            ".".join(col.rsplit(".", depth_names)[-depth_names:])
+            for col in summary.columns
+        ]
+
         # Make run_id the first column
         cols = summary.columns.tolist()
         cols.insert(0, cols.pop(cols.index("run_id")))
         summary = summary[cols]
+
         return summary
 
