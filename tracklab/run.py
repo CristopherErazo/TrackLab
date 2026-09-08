@@ -24,6 +24,11 @@ class Run:
         # two near-simultaneous Run() constructions could both walk through.
         self.run_id, self.run_dir = claim_run_dir(exp_dir, artifacts)
         self._finalized = False
+        # Logger name must be unique per *run directory*, not just per run_id:
+        # logging.getLogger() is process-global, so two experiments that both
+        # have a run_001 would otherwise share one logger and the second run's
+        # messages would land in the first run's log files.
+        self._logger_name = f"tracklab.{Path(exp_dir).name}.{self.run_id}"
         # self.status_path = self.run_dir / "status.json"
 
         # writers
@@ -69,14 +74,17 @@ class Run:
     def finalize(self):
         if self._finalized:
             return
-        self.metrics.flush()
+        # force=True: finalize must write everything still buffered, even if
+        # the last flush happened less than min_flush_interval ago. Without
+        # it the tail of the run was silently dropped.
+        self.metrics.flush(force=True)
         if hasattr(self, "artifacts"):
             self.artifacts.flush()
         self._close_logger_handlers()   
         self._finalized = True
 
     def _close_logger_handlers(self):
-        logger = logging.getLogger(self.run_id)
+        logger = logging.getLogger(self._logger_name)
         for h in logger.handlers[:]:
             h.close()
             logger.removeHandler(h)
@@ -88,7 +96,7 @@ class Run:
     
     def get_logger(self, log_to_terminal=True, log_to_file=True, 
                    level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
-        return create_run_logger(self.run_dir, self.run_id, log_to_terminal, log_to_file, level, log_format)
+        return create_run_logger(self.run_dir, self._logger_name, log_to_terminal, log_to_file, level, log_format)
 
 
     # def set_status(self, **kwargs):

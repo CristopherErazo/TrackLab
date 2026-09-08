@@ -11,13 +11,16 @@ class LevelFilter(logging.Filter):
 
 
 
-def create_run_logger(run_dir, run_id, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
+def create_run_logger(run_dir, logger_name, log_to_terminal=True, log_to_file=True, level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
     """
     Create a logger for a specific run.
 
     Args:
         run_dir (str): Directory for the run logs.
-        run_id (str): Unique identifier for the run.
+        logger_name (str): Name for logging.getLogger(). Must be unique per run
+            directory (Run passes "tracklab.<experiment>.<run_id>"), because
+            loggers are process-global and a shared name would send two runs'
+            messages into one run's files.
         log_to_terminal (bool): Whether to log to the terminal.
         log_to_file (bool): Whether to log to a file.
         level (int): Logging level (e.g., logging.INFO, logging.DEBUG).
@@ -29,8 +32,11 @@ def create_run_logger(run_dir, run_id, log_to_terminal=True, log_to_file=True, l
     log_dir = Path(run_dir) / "logs"
     log_dir.mkdir(exist_ok=True)
 
-    logger = logging.getLogger(run_id)
+    logger = logging.getLogger(logger_name)
     logger.setLevel(level)
+    # This logger installs its own handlers; don't also hand records to the
+    # root logger, or every line prints twice whenever root is configured.
+    logger.propagate = False
 
     # Avoid duplicate handlers
     if logger.handlers:
