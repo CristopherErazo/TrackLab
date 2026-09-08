@@ -20,3 +20,4 @@ dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies] 
 test = ["pytest"]
+torch = ["torch"]  # only needed for type='torch' artifacts

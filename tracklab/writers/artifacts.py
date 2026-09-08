@@ -1,18 +1,41 @@
 import numpy as np
 import pandas as pd
 import pickle
-import torch
 from pathlib import Path
 
 from ..utils import append_jsonl, read_jsonl
+
+
+def _require_torch():
+    """torch is an optional dependency: it is only needed for type='torch'
+    artifacts, so it is imported here on first use rather than at module
+    import time. Otherwise `import tracklab` would fail for every user who
+    only wants numpy/pickle artifacts."""
+    try:
+        import torch
+    except ImportError as e:
+        raise ImportError(
+            "Saving/loading type='torch' artifacts requires torch, which is not "
+            "installed. Install it with `pip install torch` (or `pip install tracklab[torch]`)."
+        ) from e
+    return torch
+
+
+def _torch_save(obj, p):
+    _require_torch().save(obj, p)
+
+
+def _torch_load(p):
+    return _require_torch().load(p, map_location="cpu")
+
 
 # name -> (write_fn, read_fn, extension). Extend this dict, never the call sites.
 _SERIALIZERS = {
     "tensor": (lambda obj, p: np.save(p, obj),
                lambda p: np.load(p),
                ".npy"),
-    "torch":  (lambda obj, p: torch.save(obj, p),
-               lambda p: torch.load(p, map_location="cpu"),
+    "torch":  (_torch_save,
+               _torch_load,
                ".pt"),
     "pickle": (lambda obj, p: pickle.dump(obj, open(p, "wb")),
                lambda p: pickle.load(open(p, "rb")),
