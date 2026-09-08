@@ -1,7 +1,6 @@
 import pickle
 import numpy as np
 import pandas as pd
-import os
 import json
 from pathlib import Path
 
@@ -13,7 +12,7 @@ _EXT_TO_READ_FN = {ext: read_fn for _, (_, read_fn, ext) in _SERIALIZERS.items()
 # _EXT_TO_TYPE = {ext: type_name for type_name, (_, _, ext) in _SERIALIZERS.items()}
 
 
-from .utils import flatten_dict, next_run_id
+from .utils import flatten_dict, next_run_id, list_run_dirs, _atomic_write
 
 class ExperimentReader:
     def __init__(self, experiment_name, base_dir="./data"):
@@ -24,8 +23,10 @@ class ExperimentReader:
         return next_run_id(self.exp_dir)
 
     def list_runs(self):
-        return [d for d in os.listdir(self.exp_dir)
-                if d.startswith("run_") and (self.exp_dir/d/"metrics.jsonl").exists()]
+        """Run ids that have started logging metrics, sorted by run index.
+        Returns [] if the experiment directory does not exist yet."""
+        return [d for d in list_run_dirs(self.exp_dir)
+                if (self.exp_dir/d/"metrics.jsonl").exists()]
 
     def load_metrics(self, run_id):
         rows = read_jsonl(self.exp_dir / run_id / "metrics.jsonl")
@@ -48,11 +49,10 @@ class ExperimentReader:
         config_path = self.exp_dir/run_id/"config.json"
         with open(config_path, 'r') as f:
             config = json.load(f)
-        # Update the config with new values
+        # Shallow update: a top-level key in new_config replaces the whole value.
         config.update(new_config)
-        # Save the updated config back to the file
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=4)
+        # Same temp-file + rename as ConfigWriter, so a concurrent reader never sees a partial file.
+        _atomic_write(config_path, json.dumps(config, indent=4))
 
 
     def list_artifact_groups(self, run_id):

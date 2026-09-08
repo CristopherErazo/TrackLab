@@ -29,6 +29,16 @@ def _torch_load(p):
     return _require_torch().load(p, map_location="cpu")
 
 
+def _pickle_save(obj, p):
+    with open(p, "wb") as f:   # explicit close: an unclosed handle keeps the file locked on Windows
+        pickle.dump(obj, f)
+
+
+def _pickle_load(p):
+    with open(p, "rb") as f:
+        return pickle.load(f)
+
+
 # name -> (write_fn, read_fn, extension). Extend this dict, never the call sites.
 _SERIALIZERS = {
     "tensor": (lambda obj, p: np.save(p, obj),
@@ -37,8 +47,8 @@ _SERIALIZERS = {
     "torch":  (_torch_save,
                _torch_load,
                ".pt"),
-    "pickle": (lambda obj, p: pickle.dump(obj, open(p, "wb")),
-               lambda p: pickle.load(open(p, "rb")),
+    "pickle": (_pickle_save,
+               _pickle_load,
                ".pkl"),
 }
 

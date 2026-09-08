@@ -1,6 +1,27 @@
 import os
+import re
 import json
 from pathlib import Path
+
+_RUN_DIR_RE = re.compile(r"^run_(\d+)$")
+
+
+def parse_run_id(name: str):
+    """Return the integer index of a run directory name ("run_007" -> 7), or
+    None if the name is not a run directory. Anything else that happens to
+    live in an experiment folder (run_backup, notes.txt, ...) is ignored
+    instead of crashing every subsequent start_run() with a ValueError."""
+    m = _RUN_DIR_RE.match(name)
+    return int(m.group(1)) if m else None
+
+
+def list_run_dirs(exp_dir) -> list[str]:
+    """Run directory names in exp_dir, sorted by run index (os.listdir order
+    is filesystem dependent). Returns [] if exp_dir does not exist."""
+    if not os.path.isdir(exp_dir):
+        return []
+    runs = [(parse_run_id(d), d) for d in os.listdir(exp_dir)]
+    return [d for n, d in sorted(r for r in runs if r[0] is not None)]
 
 
 def append_jsonl(path: Path, rows: list[dict]):
@@ -59,15 +80,8 @@ def next_run_id(exp_dir):
     doesn't matter. For actually creating a new run, use claim_run_dir(),
     which retries this scan until a creation actually succeeds.
     """
-    if not os.path.exists(exp_dir):
-        n = 1
-    else:
-        existing = [
-            int(d.split("_")[1])
-            for d in os.listdir(exp_dir)
-            if d.startswith("run_")
-        ]
-        n = max(existing, default=0) + 1
+    existing = [parse_run_id(d) for d in list_run_dirs(exp_dir)]
+    n = max(existing, default=0) + 1
     return f"run_{n:03d}"
 
 

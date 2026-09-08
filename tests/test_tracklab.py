@@ -77,6 +77,39 @@ def test_concurrent_runs_get_unique_ids(tmp_path):
     assert sorted(ids) == [f"run_{i:03d}" for i in range(1, 17)]
 
 
+def test_stray_dirs_in_experiment_folder_are_ignored(tmp_path):
+    exp_dir = tmp_path / "e"
+    exp_dir.mkdir()
+    (exp_dir / "run_backup").mkdir()   # used to crash next_run_id with ValueError
+    (exp_dir / "notes.txt").write_text("")
+    (exp_dir / "run_002").mkdir()
+    run = ExperimentTracker("e", base_dir=tmp_path).start_run({})
+    run.finalize()
+    assert run.run_id == "run_003"
+
+
+# --- reader ------------------------------------------------------------------
+
+def test_list_runs_sorted_and_tolerates_missing_dir(tmp_path):
+    reader = ExperimentReader("e", base_dir=tmp_path)
+    assert reader.list_runs() == []   # experiment dir does not exist yet
+    exp = ExperimentTracker("e", base_dir=tmp_path)
+    for _ in range(11):
+        with exp.start_run({}) as run:
+            run.track_metric(0, x=1.0)
+    assert reader.list_runs() == [f"run_{i:03d}" for i in range(1, 12)]
+
+
+def test_update_config_is_atomic_and_shallow(tmp_path):
+    exp = ExperimentTracker("e", base_dir=tmp_path)
+    with exp.start_run({"a": 1, "nested": {"x": 1, "y": 2}}) as run:
+        pass
+    reader = ExperimentReader("e", base_dir=tmp_path)
+    reader.update_config(run.run_id, {"a": 2, "note": "hi"})
+    assert reader.load_config(run.run_id) == {"a": 2, "nested": {"x": 1, "y": 2}, "note": "hi"}
+    assert not (run.run_dir / "config.json.tmp").exists()
+
+
 # --- live stream -------------------------------------------------------------
 
 def test_metrics_stream_keeps_partial_line_for_next_poll(tmp_path):
@@ -118,8 +151,6 @@ def test_torch_serializer_gives_clear_error_when_torch_missing(tmp_path, monkeyp
     with pytest.raises(ImportError, match="requires torch"):
         load(tmp_path / "x.pt")
 
-
-# --- reader ------------------------------------------------------------------
 
 def test_summarize_runs_keeps_only_varying_params(tmp_path):
     exp = ExperimentTracker("e", base_dir=tmp_path)
