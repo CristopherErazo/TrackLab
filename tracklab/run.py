@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from omegaconf import OmegaConf
 import logging
@@ -29,7 +28,6 @@ class Run:
         # have a run_001 would otherwise share one logger and the second run's
         # messages would land in the first run's log files.
         self._logger_name = f"tracklab.{Path(exp_dir).name}.{self.run_id}"
-        # self.status_path = self.run_dir / "status.json"
 
         # writers
         self.metrics = MetricsWriter(self.run_dir,min_flush_interval=min_flush_interval)
@@ -97,8 +95,3 @@ class Run:
     def get_logger(self, log_to_terminal=True, log_to_file=True, 
                    level=logging.INFO, log_format="%(asctime)s - %(levelname)s - %(message)s"):
         return create_run_logger(self.run_dir, self._logger_name, log_to_terminal, log_to_file, level, log_format)
-
-
-    # def set_status(self, **kwargs):
-    #     """Write a status update to a json file."""
-    #     _atomic_write(self.status_path, json.dumps(kwargs))
