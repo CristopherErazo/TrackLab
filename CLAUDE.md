@@ -20,6 +20,8 @@ uv run scripts/example.py train.lr=0.05 train.n_steps=100        # OmegaConf CLI
 uv build                          # sdist + wheel into dist/ (uv_build backend, flat layout via module-root = "")
 ```
 
+**Releasing**: bump `version` in `pyproject.toml`, run `uv lock`, commit, then `git tag -a vX.Y.Z -m "..."` and `git push origin main vX.Y.Z`. The README installation section pins the latest tag; update it in the same commit. Existing tags: `v0.1.0`, `v0.2.0` (on origin), `v1.0.0` (local only), `v1.1.0`.
+
 Tests live in `tests/test_tracklab.py` (pytest config is in `pyproject.toml` under `[tool.pytest.ini_options]`). They are deliberately small: one test per guarantee (finalize flushes, per-experiment loggers, unique concurrent run ids, partial-line tolerance in `MetricsStream`, artifact round-trips, optional torch, `summarize_runs`). Add a test when fixing a bug; keep the suite fast. `scripts/example.py` remains the end-to-end smoke check: it writes a run (`train()`) and then reads it back with `ExperimentReader` (`analyze()`); pass `sleep=0` for a fast check.
 
 `torch` is an **optional** dependency (`pip install -e .[torch]`): it is imported lazily inside the `torch` serializer in `tracklab/writers/artifacts.py`, so `import tracklab` and the `tensor`/`pickle` artifact types work without it. Only `type='torch'` artifacts require it and raise a clear `ImportError` otherwise.
@@ -70,6 +72,6 @@ data/<experiment_name>/run_<NNN>/
 
 **`summarize_runs()`** builds a run-comparison table by flattening each `config.json` and keeping only columns that vary across runs, shortening dotted keys to the last `depth_names` segments. It has explicit early returns for 0 and 1 runs — preserve those when editing.
 
-## Known documentation drift
+## Documentation
 
-`README.md` is out of date relative to the code; when touching public API, prefer the code and consider fixing the README. Specifically it still says `Experiment` (now `ExperimentTracker`), `metrics.csv`/`index.csv` (now `.jsonl`), and `run.track_artifact(step, data, name)` (the signature is now `track_artifact(data, step=None, group=None, name='', type='tensor')` — data first).
+`README.md` is the user-facing reference and was rewritten against the current code (`ExperimentTracker`, `.jsonl` files, data-first `track_artifact(data, step=None, group=None, name='', type='tensor')`). When changing public API, update the README, `scripts/example.py`, and the tests together.
