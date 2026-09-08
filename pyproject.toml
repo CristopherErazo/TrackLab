@@ -1,23 +1,32 @@
 [project]
 name = "tracklab"
 version = "0.1.0"
-description = "Simple package to for structured data logging"
+description = "Small, file-based experiment tracker: config, metrics, artifacts and logs as plain files"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 authors = [
-    { name = "Cristopher Erazo", email = "cerazova@sissa.it" }
+    { name = "Cristopher Erazo", email = "cerazova@sissa.it" },
 ]
-dynamic = ["dependencies"] 
+requires-python = ">=3.10"  # uses PEP 604 unions (`dict | OmegaConf`) in annotations
+dependencies = [
+    "numpy",
+    "omegaconf",
+    "pandas",
+]
+
+[project.optional-dependencies]
+torch = ["torch"]  # only needed for type='torch' artifacts; imported lazily
+
+[dependency-groups]
+dev = ["pytest"]
 
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"
 
-[tool.setuptools.packages.find] 
-where = ["."] 
-exclude = ["scripts", "shell","notebooks"] 
+[tool.uv.build-backend]
+module-root = ""  # flat layout: the `tracklab/` package lives at the repo root, not under src/
 
-[tool.setuptools.dynamic] 
-dependencies = { file = ["requirements.txt"] } 
-
-[project.optional-dependencies] 
-test = ["pytest"]
-torch = ["torch"]  # only needed for type='torch' artifacts
+[tool.pytest.ini_options]
+testpaths = ["tests"]

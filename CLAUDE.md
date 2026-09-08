@@ -8,19 +8,19 @@ TrackLab is a small, dependency-light experiment-tracking library (a local, file
 
 ## Commands
 
-```bash
-pip install -r requirements.txt   # pandas, omegaconf, numpy
-pip install -e .                  # editable install; package is `tracklab`
-python scripts/example.py         # end-to-end demo: fake training run, then reads it back (writes ./data/my_experiment/run_XXX)
-python scripts/example.py sleep=0 experiment_name=quick_check    # fast smoke test (~1s)
-python scripts/example.py train.lr=0.05 train.n_steps=100        # OmegaConf CLI overrides
-```
+The project is managed with [uv](https://docs.astral.sh/uv/); all metadata lives in `pyproject.toml` (no `requirements.txt`). Runtime deps: numpy, omegaconf, pandas. `torch` is an optional extra.
 
 ```bash
-python -m pytest                  # lightweight suite in tests/, ~2s, writes only to tmp_path
+uv sync --group dev               # create .venv, install tracklab (editable) + pytest
+uv sync --group dev --extra torch # ...plus torch, for type='torch' artifacts
+uv run pytest                     # lightweight suite in tests/, ~2s, writes only to tmp_path
+uv run scripts/example.py         # end-to-end demo: fake training run, then reads it back (writes ./data/my_experiment/run_XXX)
+uv run scripts/example.py sleep=0 experiment_name=quick_check    # fast smoke test (~1s)
+uv run scripts/example.py train.lr=0.05 train.n_steps=100        # OmegaConf CLI overrides
+uv build                          # sdist + wheel into dist/ (uv_build backend, flat layout via module-root = "")
 ```
 
-Tests live in `tests/test_tracklab.py` (pytest, `testpaths` set in `pytest.ini`). They are deliberately small: one test per guarantee (finalize flushes, per-experiment loggers, unique concurrent run ids, partial-line tolerance in `MetricsStream`, artifact round-trips, optional torch, `summarize_runs`). Add a test when fixing a bug; keep the suite fast. `scripts/example.py` remains the end-to-end smoke check: it writes a run (`train()`) and then reads it back with `ExperimentReader` (`analyze()`); pass `sleep=0` for a fast check.
+Tests live in `tests/test_tracklab.py` (pytest config is in `pyproject.toml` under `[tool.pytest.ini_options]`). They are deliberately small: one test per guarantee (finalize flushes, per-experiment loggers, unique concurrent run ids, partial-line tolerance in `MetricsStream`, artifact round-trips, optional torch, `summarize_runs`). Add a test when fixing a bug; keep the suite fast. `scripts/example.py` remains the end-to-end smoke check: it writes a run (`train()`) and then reads it back with `ExperimentReader` (`analyze()`); pass `sleep=0` for a fast check.
 
 `torch` is an **optional** dependency (`pip install -e .[torch]`): it is imported lazily inside the `torch` serializer in `tracklab/writers/artifacts.py`, so `import tracklab` and the `tensor`/`pickle` artifact types work without it. Only `type='torch'` artifacts require it and raise a clear `ImportError` otherwise.
 

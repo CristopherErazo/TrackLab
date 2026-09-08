@@ -6,4 +6,4 @@ env/
 log/
 logs/
 data/
-*egg-info/
+*egg-info/dist/
